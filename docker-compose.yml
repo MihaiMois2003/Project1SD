@@ -26,6 +26,8 @@ services:
       - auth-db-data:/var/lib/postgresql/data
     networks:
       - energy-network
+    ports:
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -43,6 +45,8 @@ services:
       - user-db-data:/var/lib/postgresql/data
     networks:
       - energy-network
+    ports:
+      - "5434:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -60,6 +64,8 @@ services:
       - device-db-data:/var/lib/postgresql/data
     networks:
       - energy-network
+    ports:
+      - "5435:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -79,6 +85,8 @@ services:
         condition: service_healthy
     networks:
       - energy-network
+    deploy:
+      replicas: 2
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.auth-service.rule=PathPrefix(`/api/auth`)"
@@ -100,6 +108,8 @@ services:
         condition: service_healthy
     networks:
       - energy-network
+    deploy:
+      replicas: 2
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.user-service.rule=PathPrefix(`/api/users`)"
@@ -121,6 +131,8 @@ services:
         condition: service_healthy
     networks:
       - energy-network
+    deploy:
+      replicas: 2
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.device-service.rule=PathPrefix(`/api/devices`)"
@@ -128,6 +140,7 @@ services:
       - "traefik.http.services.device-service.loadbalancer.server.port=8082"
       - "traefik.http.services.device-service.loadbalancer.healthcheck.path=/api/devices/health"
       - "traefik.http.services.device-service.loadbalancer.healthcheck.interval=10s"
+
   frontend:
     build:
       context: ./frontend
