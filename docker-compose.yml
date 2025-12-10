@@ -72,6 +72,42 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-monitoring:
+    image: postgres:15-alpine
+    container_name: postgres-monitoring
+    environment:
+      POSTGRES_DB: monitoringdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - monitoring-db-data:/var/lib/postgresql/data
+    networks:
+      - energy-network
+    ports:
+      - "5436:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   auth-service:
     build:
       context: ./auth-service
@@ -103,8 +139,14 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-user:5432/userdb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
     depends_on:
       postgres-user:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - energy-network
@@ -126,8 +168,14 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-device:5432/devicedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
     depends_on:
       postgres-device:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - energy-network
@@ -140,6 +188,31 @@ services:
       - "traefik.http.services.device-service.loadbalancer.server.port=8082"
       - "traefik.http.services.device-service.loadbalancer.healthcheck.path=/api/devices/health"
       - "traefik.http.services.device-service.loadbalancer.healthcheck.interval=10s"
+
+  monitoring-service:
+    build:
+      context: ./monitoring-service
+      dockerfile: Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-monitoring:5432/monitoringdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+    depends_on:
+      postgres-monitoring:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - energy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.monitoring-service.rule=PathPrefix(`/api/monitoring`)"
+      - "traefik.http.routers.monitoring-service.entrypoints=web"
+      - "traefik.http.services.monitoring-service.loadbalancer.server.port=8083"
 
   frontend:
     build:
@@ -158,6 +231,7 @@ volumes:
   auth-db-data:
   user-db-data:
   device-db-data:
+  monitoring-db-data:
 
 networks:
   energy-network:
