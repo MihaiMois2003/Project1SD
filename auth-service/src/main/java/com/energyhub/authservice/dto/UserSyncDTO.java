@@ -1,4 +1,4 @@
-package com.energyhub.userservice.dto;
+package com.energyhub.authservice.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,5 +16,4 @@ public class UserSyncDTO implements Serializable {
     private String password;
     private String role;
     private String address;
-
 }

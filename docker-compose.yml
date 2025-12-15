@@ -214,6 +214,22 @@ services:
       - "traefik.http.routers.monitoring-service.entrypoints=web"
       - "traefik.http.services.monitoring-service.loadbalancer.server.port=8083"
 
+  device-simulator:
+    build:
+      context: ./device-simulator
+      dockerfile: Dockerfile
+    environment:
+      SIMULATOR_DEVICE_ID: 11
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - energy-network
+
   frontend:
     build:
       context: ./frontend

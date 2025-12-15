@@ -30,15 +30,18 @@ public class UserService {
         // Save user to database
         User savedUser = userRepository.save(user);
 
-        // Send synchronization message to RabbitMQ
+        // Send COMPLETE synchronization message to RabbitMQ (including password, role, address)
         UserSyncDTO syncDTO = new UserSyncDTO(
                 savedUser.getId(),
                 savedUser.getUsername(),
-                savedUser.getEmail()
+                savedUser.getEmail(),
+                savedUser.getPassword(),
+                savedUser.getRole().toString(),
+                savedUser.getAddress()
         );
 
         rabbitTemplate.convertAndSend(RabbitMQConfig.USER_QUEUE, syncDTO);
-        System.out.println("✅ User created and sync message sent: " + syncDTO);
+        System.out.println("✅ [USER-SERVICE] User created and sync message sent: " + syncDTO.getUsername());
 
         return savedUser;
     }
@@ -50,7 +53,23 @@ public class UserService {
         user.setPassword(userDetails.getPassword());
         user.setRole(userDetails.getRole());
         user.setAddress(userDetails.getAddress());
-        return userRepository.save(user);
+
+        User updatedUser = userRepository.save(user);
+
+        // Also sync updates to auth-service
+        UserSyncDTO syncDTO = new UserSyncDTO(
+                updatedUser.getId(),
+                updatedUser.getUsername(),
+                updatedUser.getEmail(),
+                updatedUser.getPassword(),
+                updatedUser.getRole().toString(),
+                updatedUser.getAddress()
+        );
+
+        rabbitTemplate.convertAndSend(RabbitMQConfig.USER_QUEUE, syncDTO);
+        System.out.println("🔄 [USER-SERVICE] User updated and sync message sent: " + syncDTO.getUsername());
+
+        return updatedUser;
     }
 
     public void deleteUser(Long id) {
